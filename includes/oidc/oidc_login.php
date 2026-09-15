@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/../request_security.php';
+
 if (!isset($userData)) {
     die("User data missing for OIDC login.");
 }
@@ -28,11 +30,7 @@ $addLoginTokensStmt->execute();
 
 $_SESSION['token'] = $token;
 $cookieValue = $username . "|" . $token . "|" . $main_currency;
-setcookie('wallos_login', $cookieValue, [
-    'expires' => $cookieExpire,
-    'samesite' => 'Lax',
-    'httponly' => true,
-]);
+setcookie('wallos_login', $cookieValue, wallos_auth_cookie_options($cookieExpire));
 
 // Set language cookie
 setcookie('language', $language, [

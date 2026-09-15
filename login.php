@@ -10,21 +10,15 @@ require_once 'includes/i18n/' . $lang . '.php';
 require_once 'includes/version.php';
 require_once 'includes/theme_helpers.php';
 require_once 'includes/turnstile.php';
+require_once 'includes/auth_rate_limit.php';
+require_once 'libs/csrf.php';
 
 if ($userCount == 0) {
     header("Location: registration.php");
     exit();
 }
 
-$secondsInMonth = 30 * 24 * 60 * 60;
-if (session_status() === PHP_SESSION_NONE) {
-    session_set_cookie_params([
-        'lifetime' => $secondsInMonth,             
-        'httponly' => true,          
-        'samesite' => 'Lax'          
-    ]);
-    session_start();
-}
+wallos_start_session();
 if (isset($_SESSION['loggedin']) && $_SESSION['loggedin'] === true) {
     $db->close();
     header("Location: .");
@@ -88,11 +82,7 @@ if ($adminRow['login_disabled'] == 1) {
         ]);
 
         $cookieValue = $username . "|" . "abc123ABC" . "|" . $main_currency;
-        setcookie('wallos_login', $cookieValue, [
-            'expires' => $cookieExpire,
-            'samesite' => 'Lax',
-            'httponly' => true,
-        ]);
+        setcookie('wallos_login', $cookieValue, wallos_auth_cookie_options($cookieExpire));
 
         $db->close();
         header("Location: .");
@@ -137,15 +127,6 @@ if ($oidcEnabled) {
     $password_login_disabled = (int) $oidcSettings['password_login_disabled'] === 1;
 
     // Generate a CSRF-protecting state string
-    $secondsInMonth = 30 * 24 * 60 * 60;
-    if (session_status() === PHP_SESSION_NONE) {
-        session_set_cookie_params([
-            'lifetime' => $secondsInMonth,
-            'httponly' => true,
-            'samesite' => 'Lax'
-        ]);
-        session_start();
-    }
     $state = bin2hex(random_bytes(16));
     $_SESSION['oidc_state'] = $state;
 
@@ -165,117 +146,124 @@ $loginFailed = false;
 $hasSuccessMessage = (isset($_GET['validated']) && $_GET['validated'] == "true") || (isset($_GET['registered']) && $_GET['registered'] == true) ? true : false;
 $userEmailWaitingVerification = false;
 $oidcEmailNotVerified = false;
+$csrfError = false;
+$rateLimitError = false;
 if (isset($_POST['username']) && isset($_POST['password'])) {
-    $username = $_POST['username'];
+    $username = (string) $_POST['username'];
     $password = $_POST['password'];
     $rememberMe = isset($_POST['remember']) ? true : false;
+    $clientIp = wallos_client_ip();
 
-    $captchaResult = wallos_verify_turnstile(
-        (string) ($_POST['cf-turnstile-response'] ?? ''),
-        $_SERVER['REMOTE_ADDR'] ?? null
-    );
-
-    if (!$captchaResult['success']) {
-        $captchaErrorKey = wallos_turnstile_error_translation_key($captchaResult['error']);
+    if (!verify_csrf_token($_POST['csrf_token'] ?? null)) {
+        $csrfError = true;
         $loginFailed = true;
+        error_log('Wallos security: rejected password login with invalid CSRF token.');
+    } elseif (wallos_login_rate_limited($db, $username, $clientIp)) {
+        $rateLimitError = true;
+        $loginFailed = true;
+        error_log('Wallos security: password login rate limited.');
     } else {
+        $captchaResult = wallos_verify_turnstile(
+            (string) ($_POST['cf-turnstile-response'] ?? ''),
+            $clientIp === 'unknown' ? null : $clientIp
+        );
 
-    $query = "SELECT id, password, main_currency, language FROM user WHERE username = :username";
-    $stmt = $db->prepare($query);
-    $stmt->bindValue(':username', $username, SQLITE3_TEXT);
-    $result = $stmt->execute();
-    $row = $result->fetchArray(SQLITE3_ASSOC);
+        if (!$captchaResult['success']) {
+            wallos_record_login_failure($db, $username, $clientIp);
+            $captchaErrorKey = wallos_turnstile_error_translation_key($captchaResult['error']);
+            $loginFailed = true;
+        } else {
 
-    if ($row) {
-        $hashedPasswordFromDb = $row['password'];
-        $userId = $row['id'];
-        $main_currency = $row['main_currency'];
-        $language = $row['language'];
-        if (password_verify($password, $hashedPasswordFromDb)) {
-
-            // Check if the user is in the email_verification table
-            $query = "SELECT 1 FROM email_verification WHERE user_id = :userId";
+            $query = "SELECT id, password, main_currency, language FROM user WHERE username = :username";
             $stmt = $db->prepare($query);
-            $stmt->bindValue(':userId', $userId, SQLITE3_INTEGER);
+            $stmt->bindValue(':username', $username, SQLITE3_TEXT);
             $result = $stmt->execute();
-            $verificationMissing = $result->fetchArray(SQLITE3_ASSOC);
+            $row = $result->fetchArray(SQLITE3_ASSOC);
 
-            // Check if the user has 2fa enabled
-            $query = "SELECT totp_enabled FROM user WHERE id = :userId";
-            $stmt = $db->prepare($query);
-            $stmt->bindValue(':userId', $userId, SQLITE3_INTEGER);
-            $result = $stmt->execute();
-            $totpEnabled = $result->fetchArray(SQLITE3_ASSOC);
+            if ($row && password_verify($password, $row['password'])) {
+                $userId = $row['id'];
+                $main_currency = $row['main_currency'];
+                $language = $row['language'];
 
-            if ($verificationMissing) {
-                $userEmailWaitingVerification = true;
-                $loginFailed = true;
-            } else {
-                if ($totpEnabled['totp_enabled'] == 1) {
-                    $_SESSION['totp_user_id'] = $userId;
-                    if ($rememberMe) {
-                        $_SESSION['pending_remember_me'] = true; // defer cookie until TOTP done
-                    }
-                    $db->close();
-                    header("Location: totp.php");
-                    exit();
-                }
-
-                // No TOTP — safe to create remember-me token now
-                if ($rememberMe) {
-                    $token = bin2hex(random_bytes(32));
-                    $addLoginTokens = "INSERT INTO login_tokens (user_id, token) VALUES (:userId, :token)";
-                    $addLoginTokensStmt = $db->prepare($addLoginTokens);
-                    $addLoginTokensStmt->bindParam(':userId', $userId, SQLITE3_INTEGER);
-                    $addLoginTokensStmt->bindParam(':token', $token, SQLITE3_TEXT);
-                    $addLoginTokensStmt->execute();
-                    $_SESSION['token'] = $token;
-                    $cookieValue = $username . "|" . $token . "|" . $main_currency;
-                    setcookie('wallos_login', $cookieValue, [
-                        'expires' => $cookieExpire,
-                        'samesite' => 'Lax',
-                        'httponly' => true,
-                    ]);
-                }
-
-                session_regenerate_id(true);
-                $_SESSION['username'] = $username;
-                $_SESSION['loggedin'] = true;
-                $_SESSION['main_currency'] = $main_currency;
-                $_SESSION['userId'] = $userId;
-                setcookie('language', $language, [
-                    'expires' => $cookieExpire,
-                    'samesite' => 'Lax'
-                ]);
-
-                if (!isset($_COOKIE['sortOrder'])) {
-                    setcookie('sortOrder', 'next_payment', [
-                        'expires' => $cookieExpire,
-                        'samesite' => 'Lax'
-                    ]);
-                }
-
-                $query = "SELECT color_theme FROM settings WHERE user_id = :userId";
+                // Check if the user is in the email_verification table
+                $query = "SELECT 1 FROM email_verification WHERE user_id = :userId";
                 $stmt = $db->prepare($query);
                 $stmt->bindValue(':userId', $userId, SQLITE3_INTEGER);
                 $result = $stmt->execute();
-                $settings = $result->fetchArray(SQLITE3_ASSOC);
-                setcookie('colorTheme', $settings['color_theme'], [
-                    'expires' => $cookieExpire,
-                    'samesite' => 'Lax'
-                ]);
+                $verificationMissing = $result->fetchArray(SQLITE3_ASSOC);
 
-                $db->close();
-                header("Location: .");
-                exit();
+                // Check if the user has 2fa enabled
+                $query = "SELECT totp_enabled FROM user WHERE id = :userId";
+                $stmt = $db->prepare($query);
+                $stmt->bindValue(':userId', $userId, SQLITE3_INTEGER);
+                $result = $stmt->execute();
+                $totpEnabled = $result->fetchArray(SQLITE3_ASSOC);
+
+                if ($verificationMissing) {
+                    $userEmailWaitingVerification = true;
+                    $loginFailed = true;
+                } else {
+                    wallos_clear_login_failures($db, $username);
+                    rotate_csrf_token();
+                    if ($totpEnabled['totp_enabled'] == 1) {
+                        $_SESSION['totp_user_id'] = $userId;
+                        if ($rememberMe) {
+                            $_SESSION['pending_remember_me'] = true; // defer cookie until TOTP done
+                        }
+                        $db->close();
+                        header("Location: totp.php");
+                        exit();
+                    }
+
+                    // No TOTP — safe to create remember-me token now
+                    if ($rememberMe) {
+                        $token = bin2hex(random_bytes(32));
+                        $addLoginTokens = "INSERT INTO login_tokens (user_id, token) VALUES (:userId, :token)";
+                        $addLoginTokensStmt = $db->prepare($addLoginTokens);
+                        $addLoginTokensStmt->bindParam(':userId', $userId, SQLITE3_INTEGER);
+                        $addLoginTokensStmt->bindParam(':token', $token, SQLITE3_TEXT);
+                        $addLoginTokensStmt->execute();
+                        $_SESSION['token'] = $token;
+                        $cookieValue = $username . "|" . $token . "|" . $main_currency;
+                        setcookie('wallos_login', $cookieValue, wallos_auth_cookie_options($cookieExpire));
+                    }
+
+                    session_regenerate_id(true);
+                    $_SESSION['username'] = $username;
+                    $_SESSION['loggedin'] = true;
+                    $_SESSION['main_currency'] = $main_currency;
+                    $_SESSION['userId'] = $userId;
+                    setcookie('language', $language, [
+                        'expires' => $cookieExpire,
+                        'samesite' => 'Lax'
+                    ]);
+
+                    if (!isset($_COOKIE['sortOrder'])) {
+                        setcookie('sortOrder', 'next_payment', [
+                            'expires' => $cookieExpire,
+                            'samesite' => 'Lax'
+                        ]);
+                    }
+
+                    $query = "SELECT color_theme FROM settings WHERE user_id = :userId";
+                    $stmt = $db->prepare($query);
+                    $stmt->bindValue(':userId', $userId, SQLITE3_INTEGER);
+                    $result = $stmt->execute();
+                    $settings = $result->fetchArray(SQLITE3_ASSOC);
+                    setcookie('colorTheme', $settings['color_theme'], [
+                        'expires' => $cookieExpire,
+                        'samesite' => 'Lax'
+                    ]);
+
+                    $db->close();
+                    header("Location: .");
+                    exit();
+                }
+            } else {
+                wallos_record_login_failure($db, $username, $clientIp);
+                $loginFailed = true;
             }
-
-        } else {
-            $loginFailed = true;
         }
-    } else {
-        $loginFailed = true;
-    }
     }
 }
 
@@ -378,6 +366,7 @@ if (isset($_GET['error'])) {
             </header>
             <form action="login.php" method="post">
                 <?php if (!$password_login_disabled) { ?>
+                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(generate_csrf_token()) ?>">
                     <div class="form-group">
                         <label for="username"><?= translate('username', $i18n) ?>:</label>
                         <input type="text" id="username" name="username" autocomplete="username" required>
@@ -429,7 +418,15 @@ if (isset($_GET['error'])) {
                     ?>
                     <ul class="error-box">
                         <?php
-                        if ($captchaErrorKey !== null) {
+                        if ($csrfError) {
+                            ?>
+                            <li><i class="fa-solid fa-triangle-exclamation"></i><?= translate('csrf_verification_failed', $i18n) ?></li>
+                            <?php
+                        } elseif ($rateLimitError) {
+                            ?>
+                            <li><i class="fa-solid fa-triangle-exclamation"></i><?= translate('auth_rate_limited', $i18n) ?></li>
+                            <?php
+                        } elseif ($captchaErrorKey !== null) {
                             ?>
                             <li><i class="fa-solid fa-triangle-exclamation"></i><?= translate($captchaErrorKey, $i18n) ?></li>
                             <?php

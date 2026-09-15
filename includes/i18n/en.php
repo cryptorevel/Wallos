@@ -38,6 +38,9 @@ $i18n = [
     "captcha_human_prompt" => "Please verify that you are human.",
     "captcha_unavailable" => "Unable to verify CAPTCHA. Please try again.",
     "captcha_configuration_error" => "CAPTCHA is enabled but is not configured correctly. Contact the administrator.",
+    "csrf_verification_failed" => "Your session could not be verified. Please refresh the page and try again.",
+    "auth_rate_limited" => "Too many attempts. Please try again later.",
+    "registration_rate_limited" => "Too many registration attempts. Please try again later.",
     // Password Reset Page
     "forgot_password" => "Forgot Password",
     "reset_password" => "Reset Password",

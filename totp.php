@@ -8,13 +8,14 @@ require_once 'includes/i18n/' . $lang . '.php';
 
 require_once 'includes/version.php';
 require_once 'includes/theme_helpers.php';
+require_once 'includes/request_security.php';
 
 if ($userCount == 0) {
     header("Location: registration.php");
     exit();
 }
 
-session_start();
+wallos_start_session();
 
 if (isset($_SESSION['loggedin']) && $_SESSION['loggedin'] === true) {
     $db->close();
@@ -205,11 +206,7 @@ if (isset($_POST['one-time-code'])) {
             $_SESSION['token'] = $token;
             $cookieExpire = time() + (30 * 24 * 60 * 60);
             $cookieValue = $user['username'] . "|" . $token . "|" . $user['main_currency'];
-            setcookie('wallos_login', $cookieValue, [
-                'expires'  => $cookieExpire,
-                'samesite' => 'Lax',
-                'httponly' => true,
-            ]);
+            setcookie('wallos_login', $cookieValue, wallos_auth_cookie_options($cookieExpire));
             unset($_SESSION['pending_remember_me']);
         }
 

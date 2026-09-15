@@ -12,16 +12,9 @@ require_once 'i18n/languages.php';
 require_once 'i18n/getlang.php';
 require_once 'i18n/' . $lang . '.php';
 require_once 'remember_me.php';
+require_once __DIR__ . '/request_security.php';
 
-$secondsInMonth = 30 * 24 * 60 * 60;
-if (session_status() === PHP_SESSION_NONE) {
-    session_set_cookie_params([
-        'lifetime' => $secondsInMonth,
-        'httponly' => true,
-        'samesite' => 'Lax'
-    ]);
-    session_start();
-}
+wallos_start_session();
 
 if (isset($_SESSION['loggedin']) && $_SESSION['loggedin'] === true) {
     $userId = $_SESSION['userId'];

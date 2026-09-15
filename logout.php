@@ -1,15 +1,8 @@
 <?php
 require_once 'includes/connect.php';
 require_once 'includes/oidc_settings.php';
-$secondsInMonth = 30 * 24 * 60 * 60;
-if (session_status() === PHP_SESSION_NONE) {
-    session_set_cookie_params([
-        'lifetime' => $secondsInMonth,             
-        'httponly' => true,          
-        'samesite' => 'Lax'          
-    ]);
-    session_start();
-}
+require_once 'includes/request_security.php';
+wallos_start_session();
 
 $logoutOIDC = false;
 
@@ -50,9 +43,15 @@ if (isset($_SESSION['token'])) {
     }
 }
 $_SESSION = array();
+if (ini_get('session.use_cookies')) {
+    $sessionCookie = wallos_session_cookie_options(0);
+    $sessionCookie['expires'] = time() - 3600;
+    unset($sessionCookie['lifetime']);
+    setcookie(session_name(), '', $sessionCookie);
+}
 session_destroy();
 $cookieExpire = time() - 3600;
-setcookie('wallos_login', '', $cookieExpire);
+setcookie('wallos_login', '', wallos_auth_cookie_options($cookieExpire));
 $db->close();
 
 if ($logoutOIDC && !empty($logoutUrl)) {

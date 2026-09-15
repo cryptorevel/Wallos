@@ -12,6 +12,8 @@ require_once 'includes/i18n/' . $lang . '.php';
 require_once 'includes/version.php';
 require_once 'includes/theme_helpers.php';
 require_once 'includes/turnstile.php';
+require_once 'includes/auth_rate_limit.php';
+require_once 'libs/csrf.php';
 
 function validate($value)
 {
@@ -177,6 +179,8 @@ $usernameExists = false;
 $emailExists = false;
 $registrationFailed = false;
 $hasErrors = false;
+$csrfError = false;
+$rateLimitError = false;
 if (isset($_POST['username'])) {
     $username = validate($_POST['username']);
     $firstname = validate($_POST['firstname']);
@@ -190,13 +194,24 @@ if (isset($_POST['username'])) {
     $language = $_POST['language'];
     $avatar = "images/avatars/0.svg";
 
-    $captchaResult = wallos_verify_turnstile(
-        (string) ($_POST['cf-turnstile-response'] ?? ''),
-        $_SERVER['REMOTE_ADDR'] ?? null
-    );
-    if (!$captchaResult['success']) {
-        $captchaErrorKey = wallos_turnstile_error_translation_key($captchaResult['error']);
+    $clientIp = wallos_client_ip();
+    if (!verify_csrf_token($_POST['csrf_token'] ?? null)) {
+        $csrfError = true;
         $hasErrors = true;
+        error_log('Wallos security: rejected registration with invalid CSRF token.');
+    } elseif (!wallos_consume_registration_attempt($db, $clientIp)) {
+        $rateLimitError = true;
+        $hasErrors = true;
+        error_log('Wallos security: registration rate limited.');
+    } else {
+        $captchaResult = wallos_verify_turnstile(
+            (string) ($_POST['cf-turnstile-response'] ?? ''),
+            $clientIp === 'unknown' ? null : $clientIp
+        );
+        if (!$captchaResult['success']) {
+            $captchaErrorKey = wallos_turnstile_error_translation_key($captchaResult['error']);
+            $hasErrors = true;
+        }
     }
 
     if ($password != $confirm_password) {
@@ -330,6 +345,7 @@ if (isset($_POST['username'])) {
                 }
             }
 
+            rotate_csrf_token();
             $db->close();
             header("Location: login.php?registered=true&requireValidation=$requireValidation");
             exit();
@@ -400,6 +416,7 @@ if (isset($_POST['username'])) {
                 </p>
             </header>
             <form action="registration.php" method="post" class="registration-form">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(generate_csrf_token()) ?>">
                 <div class="form-group">
                     <label for="username"><?= translate('username', $i18n) ?>:</label>
                     <input type="text" id="username" name="username" autocomplete="username" required>
@@ -463,7 +480,11 @@ if (isset($_POST['username'])) {
                 if ($hasErrors || $captchaErrorKey !== null) {
                     ?>
                     <ul class="error-box">
-                        <?php if ($captchaErrorKey !== null) { ?>
+                        <?php if ($csrfError) { ?>
+                            <li><i class="fa-solid fa-triangle-exclamation"></i><?= translate('csrf_verification_failed', $i18n) ?></li>
+                        <?php } elseif ($rateLimitError) { ?>
+                            <li><i class="fa-solid fa-triangle-exclamation"></i><?= translate('registration_rate_limited', $i18n) ?></li>
+                        <?php } elseif ($captchaErrorKey !== null) { ?>
                             <li><i class="fa-solid fa-triangle-exclamation"></i><?= translate($captchaErrorKey, $i18n) ?></li>
                         <?php } ?>
                         <?php

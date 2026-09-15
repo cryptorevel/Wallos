@@ -8,21 +8,14 @@ require_once 'includes/i18n/getlang.php';
 require_once 'includes/i18n/' . $lang . '.php';
 
 require_once 'includes/version.php';
+require_once 'includes/request_security.php';
 
 if ($userCount == 0) {
     header("Location: registration.php");
     exit();
 }
 
-$secondsInMonth = 30 * 24 * 60 * 60;
-if (session_status() === PHP_SESSION_NONE) {
-    session_set_cookie_params([
-        'lifetime' => $secondsInMonth,             
-        'httponly' => true,          
-        'samesite' => 'Lax'          
-    ]);
-    session_start();
-}
+wallos_start_session();
 if (isset($_SESSION['loggedin']) && $_SESSION['loggedin'] === true) {
     $db->close();
     header("Location: .");

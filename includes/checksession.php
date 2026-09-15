@@ -1,16 +1,9 @@
 <?php
 require_once 'remember_me.php';
+require_once __DIR__ . '/request_security.php';
 
 // Handle OIDC first
-$secondsInMonth = 30 * 24 * 60 * 60;
-if (session_status() === PHP_SESSION_NONE) {
-    session_set_cookie_params([
-        'lifetime' => $secondsInMonth,             
-        'httponly' => true,          
-        'samesite' => 'Lax'          
-    ]);
-    session_start();
-}
+wallos_start_session();
 
 if (isset($_GET['code']) && isset($_GET['state'])) {
     // This request is coming from the OIDC login flow
