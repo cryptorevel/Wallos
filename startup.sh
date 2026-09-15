@@ -9,10 +9,49 @@ echo "Startup script is running..." > /var/log/startup.log
 PUID=${PUID:-82}
 PGID=${PGID:-82}
 
+# When WALLOS_DATA_DIR is set (for example, to a Render Persistent Disk), keep
+# the database and user-uploaded logos on that volume while preserving the
+# paths expected by Wallos. Existing persistent data always wins; application
+# defaults are copied only into an entirely empty destination.
+prepare_persistent_path() {
+  app_path=$1
+  data_path=$2
+
+  mkdir -p "$data_path"
+
+  if [ -d "$app_path" ] && [ ! -L "$app_path" ] && [ -z "$(ls -A "$data_path")" ]; then
+    cp -a "$app_path/." "$data_path/"
+  fi
+
+  if [ -L "$app_path" ]; then
+    current_target=$(readlink "$app_path")
+    if [ "$current_target" = "$data_path" ]; then
+      return
+    fi
+  fi
+
+  rm -rf "$app_path"
+  ln -s "$data_path" "$app_path"
+}
+
+if [ -n "${WALLOS_DATA_DIR:-}" ]; then
+  case "$WALLOS_DATA_DIR" in
+    /*) ;;
+    *) echo "WALLOS_DATA_DIR must be an absolute path" >&2; exit 1 ;;
+  esac
+
+  mkdir -p "$WALLOS_DATA_DIR"
+  prepare_persistent_path /var/www/html/db "$WALLOS_DATA_DIR/db"
+  prepare_persistent_path /var/www/html/images/uploads/logos "$WALLOS_DATA_DIR/logos"
+fi
+
 # Change the www-data user id and group id to be the user-specified ones
 groupmod -o -g "$PGID" www-data
 usermod -o -u "$PUID" www-data
 chown -R www-data:www-data /var/www/html
+if [ -n "${WALLOS_DATA_DIR:-}" ]; then
+  chown -R www-data:www-data "$WALLOS_DATA_DIR"
+fi
 chown -R www-data:www-data /tmp
 chmod -R 770 /tmp
 
@@ -42,23 +81,7 @@ shutdown_once() {
 # Handle all common stop signals
 trap 'shutdown_once' SIGTERM SIGINT SIGQUIT
 
-# Start both PHP-FPM and Nginx
-echo "Launching php-fpm"
-php-fpm -F &
-PHP_FPM_PID=$!
-
-echo "Launching crond"
-crond -f &
-CROND_PID=$!
-
-echo "Launching nginx"
-nginx -g 'daemon off;' &
-NGINX_PID=$!
-
 touch ~/startup.txt
-
-# Wait one second before running scripts
-sleep 1
 
 # Create database if it does not exist
 /usr/local/bin/php /var/www/html/endpoints/cronjobs/createdatabase.php
@@ -76,9 +99,6 @@ mkdir -p /var/www/html/images/uploads/logos/avatars
 chmod -R 755 /var/www/html/images/uploads/logos
 chown -R www-data:www-data /var/www/html/images/uploads/logos
 
-# Remove crontab for the user
-crontab -d -u root
-
 # Run updatenextpayment.php and wait for it to finish
 /usr/local/bin/php /var/www/html/endpoints/cronjobs/updatenextpayment.php
 
@@ -87,6 +107,25 @@ crontab -d -u root
 
 # Run checkforupdates.php
 /usr/local/bin/php /var/www/html/endpoints/cronjobs/checkforupdates.php
+
+# Start serving only after initialization is complete. In particular, cron must
+# not race the migration chain for SQLite locks during a deploy.
+echo "Launching php-fpm"
+php-fpm -F &
+PHP_FPM_PID=$!
+
+echo "Launching crond"
+crond -f &
+CROND_PID=$!
+
+echo "Launching nginx"
+nginx -g 'daemon off;' &
+NGINX_PID=$!
+
+# dcron loads this root crontab at startup. Removing the spool file after it is
+# loaded prevents duplicate executions while the running daemon retains them.
+sleep 1
+crontab -d -u root
 
 # Essentially wait until all child processes exit
 wait

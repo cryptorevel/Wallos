@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: wallos
+    runtime: docker
+    repo: https://github.com/cryptorevel/Wallos
+    branch: main
+    region: oregon
+    plan: starter
+    autoDeployTrigger: commit
+    healthCheckPath: /health.php
+    envVars:
+      - key: PORT
+        value: "80"
+      - key: TZ
+        value: America/Vancouver
+      - key: WALLOS_DATA_DIR
+        value: /var/data
+    disk:
+      name: wallos-data
+      mountPath: /var/data
+      sizeGB: 1
