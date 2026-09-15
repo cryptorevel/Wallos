@@ -246,14 +246,14 @@ if (isset($_POST['one-time-code'])) {
 
 ?>
 <!DOCTYPE html>
-<html dir="<?= $languages[$lang]['dir'] ?>">
+<html lang="<?= htmlspecialchars($lang) ?>" dir="<?= $languages[$lang]['dir'] ?>">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="<?= $theme == "light" ? "#FFFFFF" : "#12151C" ?>" id="theme-color" />
     <meta name="apple-mobile-web-app-title" content="Wallos">
-    <title>Wallos - Subscription Tracker</title>
+    <title>Wallos - <?= translate('subscription_tracker', $i18n) ?></title>
     <link rel="icon" type="image/png" href="images/icon/favicon.ico" sizes="16x16">
     <link rel="apple-touch-icon" href="images/icon/apple-touch-icon.png">
     <link rel="apple-touch-icon" sizes="152x152" href="images/icon/apple-touch-icon-152.png">
@@ -290,11 +290,11 @@ if (isset($_POST['one-time-code'])) {
                 <h1><?= translate('auth_tagline', $i18n) ?></h1>
                 <p><?= translate('auth_tagline_sub', $i18n) ?></p>
             </div>
-            <div class="auth-brand-footer">Wallos &mdash; Subscription Tracker</div>
+            <div class="auth-brand-footer">Wallos &mdash; <?= translate('subscription_tracker', $i18n) ?></div>
         </aside>
         <section class="container">
             <header>
-                <div class="logo-image" title="Wallos - Subscription Tracker">
+                <div class="logo-image" title="Wallos - <?= translate('subscription_tracker', $i18n) ?>">
                     <?php include "images/siteicons/svg/logo.php"; ?>
                 </div>
                 <p>

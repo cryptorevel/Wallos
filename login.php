@@ -9,6 +9,7 @@ require_once 'includes/i18n/' . $lang . '.php';
 
 require_once 'includes/version.php';
 require_once 'includes/theme_helpers.php';
+require_once 'includes/turnstile.php';
 
 if ($userCount == 0) {
     header("Location: registration.php");
@@ -120,6 +121,11 @@ if (isset($_COOKIE['colorTheme'])) {
     $colorTheme = sanitize_color_theme($_COOKIE['colorTheme']);
 }
 
+$turnstileConfiguration = wallos_get_turnstile_configuration();
+$captchaErrorKey = $turnstileConfiguration['enabled'] && !$turnstileConfiguration['configured']
+    ? 'captcha_configuration_error'
+    : null;
+
 // Check if OIDC is enabled and resolve any environment overrides.
 $password_login_disabled = false;
 $oidcEnabled = false;
@@ -163,6 +169,16 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
     $username = $_POST['username'];
     $password = $_POST['password'];
     $rememberMe = isset($_POST['remember']) ? true : false;
+
+    $captchaResult = wallos_verify_turnstile(
+        (string) ($_POST['cf-turnstile-response'] ?? ''),
+        $_SERVER['REMOTE_ADDR'] ?? null
+    );
+
+    if (!$captchaResult['success']) {
+        $captchaErrorKey = wallos_turnstile_error_translation_key($captchaResult['error']);
+        $loginFailed = true;
+    } else {
 
     $query = "SELECT id, password, main_currency, language FROM user WHERE username = :username";
     $stmt = $db->prepare($query);
@@ -260,6 +276,7 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
     } else {
         $loginFailed = true;
     }
+    }
 }
 
 //Check if registration is open
@@ -300,14 +317,14 @@ if (isset($_GET['error'])) {
 
 ?>
 <!DOCTYPE html>
-<html dir="<?= $languages[$lang]['dir'] ?>">
+<html lang="<?= htmlspecialchars($lang) ?>" dir="<?= $languages[$lang]['dir'] ?>">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="<?= $theme == "light" ? "#FFFFFF" : "#12151C" ?>" id="theme-color" />
     <meta name="apple-mobile-web-app-title" content="Wallos">
-    <title>Wallos - Subscription Tracker</title>
+    <title>Wallos - <?= translate('subscription_tracker', $i18n) ?></title>
     <link rel="icon" type="image/png" href="images/icon/favicon.ico" sizes="16x16">
     <link rel="apple-touch-icon" href="images/icon/apple-touch-icon.png">
     <link rel="apple-touch-icon" sizes="152x152" href="images/icon/apple-touch-icon-152.png">
@@ -329,6 +346,9 @@ if (isset($_GET['error'])) {
     <script type="text/javascript" src="scripts/login.js?<?= $version ?>"></script>
     <script type="text/javascript" src="scripts/auth-theme.js?<?= $version ?>"></script>
     <script type="text/javascript" src="scripts/password-toggle.js?<?= $version ?>"></script>
+    <?php if ($turnstileConfiguration['enabled'] && $turnstileConfiguration['configured']) { ?>
+        <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+    <?php } ?>
 </head>
 
 <body class="<?= $languages[$lang]['dir'] ?>">
@@ -345,11 +365,11 @@ if (isset($_GET['error'])) {
                 <h1><?= translate('auth_tagline', $i18n) ?></h1>
                 <p><?= translate('auth_tagline_sub', $i18n) ?></p>
             </div>
-            <div class="auth-brand-footer">Wallos &mdash; Subscription Tracker</div>
+            <div class="auth-brand-footer">Wallos &mdash; <?= translate('subscription_tracker', $i18n) ?></div>
         </aside>
         <section class="container">
             <header>
-                <div class="logo-image" title="Wallos - Subscription Tracker">
+                <div class="logo-image" title="Wallos - <?= translate('subscription_tracker', $i18n) ?>">
                     <?php include "images/siteicons/svg/logo.php"; ?>
                 </div>
                 <p>
@@ -376,6 +396,14 @@ if (isset($_GET['error'])) {
                         <?php
                     }
                     ?>
+                    <?php if ($turnstileConfiguration['enabled'] && $turnstileConfiguration['configured']) { ?>
+                        <div class="form-group captcha-widget">
+                            <p><?= translate('captcha_human_prompt', $i18n) ?></p>
+                            <div class="cf-turnstile" data-sitekey="<?= htmlspecialchars($turnstileConfiguration['site_key']) ?>"
+                                data-theme="auto" data-language="<?= $lang === 'fa' ? 'fa' : 'auto' ?>"></div>
+                            <noscript><p><?= translate('captcha_unavailable', $i18n) ?></p></noscript>
+                        </div>
+                    <?php } ?>
                     <div class="form-group">
                         <input type="submit" value="<?= translate('login', $i18n) ?>">
                     </div>
@@ -397,11 +425,15 @@ if (isset($_GET['error'])) {
                     ?>
                 </div>
                 <?php
-                if ($loginFailed) {
+                if ($loginFailed || $captchaErrorKey !== null) {
                     ?>
                     <ul class="error-box">
                         <?php
-                        if ($userEmailWaitingVerification) {
+                        if ($captchaErrorKey !== null) {
+                            ?>
+                            <li><i class="fa-solid fa-triangle-exclamation"></i><?= translate($captchaErrorKey, $i18n) ?></li>
+                            <?php
+                        } elseif ($userEmailWaitingVerification) {
                             ?>
                             <li><i
                                     class="fa-solid fa-triangle-exclamation"></i><?= translate('user_email_waiting_verification', $i18n) ?>

@@ -4,6 +4,7 @@ $i18n = [
     // Registration page
     "auth_tagline" => "Know where your money goes.",
     "auth_tagline_sub" => "Track your subscriptions, see your spending, and never miss a renewal.",
+    "subscription_tracker" => "Subscription Tracker",
     "create_account" => "You need to create an account before you're able to login",
     "username" => "Username",
     "password" => "Password",
@@ -33,6 +34,10 @@ $i18n = [
     "login_failed" => "Login details are incorrect",
     "registration_successful" => "Registration successful",
     "user_email_waiting_verification" => "Your email needs to be verified. Please check your email.",
+    "captcha_verification_failed" => "CAPTCHA verification failed.",
+    "captcha_human_prompt" => "Please verify that you are human.",
+    "captcha_unavailable" => "Unable to verify CAPTCHA. Please try again.",
+    "captcha_configuration_error" => "CAPTCHA is enabled but is not configured correctly. Contact the administrator.",
     // Password Reset Page
     "forgot_password" => "Forgot Password",
     "reset_password" => "Reset Password",

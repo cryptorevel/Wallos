@@ -10,6 +10,29 @@ body {
   color: var(--text-color);
 }
 
+html[lang="fa"] body,
+html[lang="fa"] input,
+html[lang="fa"] button,
+html[lang="fa"] select,
+html[lang="fa"] textarea {
+  font-family: Tahoma, Arial, sans-serif;
+}
+
+.rtl {
+  direction: rtl;
+  text-align: right;
+}
+
+body.rtl {
+  overflow-x: hidden;
+}
+
+.rtl input[type="email"],
+.rtl input[type="url"] {
+  direction: ltr;
+  text-align: left;
+}
+
 body.no-scroll {
   overflow-y: hidden;
 }
@@ -2274,12 +2297,22 @@ button.dark-theme-button i {
   z-index: 5;
 }
 
+.rtl .toast {
+  right: auto;
+  left: 30px;
+  transform: translateX(calc(-100% - 30px));
+}
+
 @media (max-width: 768px) {
   .toast {
     bottom: 0px;
     right: 0px;
     left: 0px;
     width: 100%;
+  }
+
+  .rtl .toast {
+    left: 0;
   }
 
   .mobile-navigation .toast {

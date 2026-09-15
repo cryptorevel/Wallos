@@ -39,6 +39,29 @@ are defined in `cronjobs` and use the `TZ=America/Vancouver` environment value.
 - health check at `/health.php`
 - 1 GB disk at `/var/data`
 
+### Cloudflare Turnstile
+
+Login and registration CAPTCHA protection is configured only through environment
+variables so the Turnstile secret is never stored in SQLite or rendered in the
+Admin UI:
+
+| Variable | Value |
+| --- | --- |
+| `TURNSTILE_ENABLED` | `true` to protect both password login and registration |
+| `TURNSTILE_SITE_KEY` | Public widget site key |
+| `TURNSTILE_SECRET_KEY` | Secret server-side verification key |
+
+Add the keys as secret environment variables in Render. Keep
+`TURNSTILE_ENABLED=false` until both keys are present. If protection is enabled
+with missing or invalid keys, Wallos fails closed and shows a configuration
+message instead of accepting an unverified login or registration. OIDC login is
+not wrapped in Turnstile because authentication occurs at the configured identity
+provider.
+
+Turnstile is required on every password login while enabled. This intentionally
+avoids a session-only adaptive threshold that bots could bypass; durable login
+rate limiting can be added separately without weakening CAPTCHA enforcement.
+
 Validate the Blueprint with:
 
 ```sh

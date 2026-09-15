@@ -12,6 +12,7 @@ $languages = [
     "de" => ["name" => "Deutsch", "dir" => "ltr"],
     "el" => ["name" => "Ελληνικά", "dir" => "ltr"],
     "es" => ["name" => "Español", "dir" => "ltr"],
+    "fa" => ["name" => "فارسی", "dir" => "rtl"],
     "fr" => ["name" => "Français", "dir" => "ltr"],
     "hu" => ["name" => "Magyar", "dir" => "ltr"],
     "id" => ["name" => "bahasa indonesia", "dir" => "ltr"],
