@@ -7,7 +7,14 @@ function makeFetchCall(url, data, button) {
     },
     body: JSON.stringify(data),
   })
-    .then(response => response.json())
+    .then(async response => {
+      const responseText = await response.text();
+      try {
+        return JSON.parse(responseText);
+      } catch (error) {
+        throw new Error('SMTP test failed. The server returned an invalid response. Check server logs.');
+      }
+    })
     .then(data => {
       if (data.success) {
         showSuccessMessage(data.message);
@@ -17,7 +24,7 @@ function makeFetchCall(url, data, button) {
       button.disabled = false;
     })
     .catch((error) => {
-      showErrorMessage(error);
+      showErrorMessage(error.message || String(error));
       button.disabled = false;
     });
 
