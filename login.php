@@ -269,9 +269,8 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
 
 //Check if registration is open
 $registrations = false;
-$resetPasswordEnabled = false;
 if (!$password_login_disabled) {
-    $adminQuery = "SELECT registrations_open, max_users, server_url, smtp_address FROM admin";
+    $adminQuery = "SELECT registrations_open, max_users FROM admin";
     $adminResult = $db->query($adminQuery);
     $adminRow = $adminResult->fetchArray(SQLITE3_ASSOC);
     $registrationsOpen = $adminRow['registrations_open'];
@@ -287,10 +286,6 @@ if (!$password_login_disabled) {
         if ($userCount < $maxUsers) {
             $registrations = true;
         }
-    }
-
-    if ($adminRow['smtp_address'] != "" && $adminRow['server_url'] != "") {
-        $resetPasswordEnabled = true;
     }
 }
 
@@ -473,7 +468,7 @@ if (isset($_GET['error'])) {
                     <?php
                 }
 
-                if ($resetPasswordEnabled) {
+                if (!$password_login_disabled) {
                     ?>
                     <div class="login-form-link">
                         <a href="passwordreset.php"><?= translate('forgot_password', $i18n) ?></a>
@@ -486,7 +481,7 @@ if (isset($_GET['error'])) {
                     ?>
                     <div class="login-form-link account-switch">
                         <span><?= translate('no_account_yet', $i18n) ?></span>
-                        <a href="registration.php"><?= translate('register', $i18n) ?></a>
+                        <a href="registration.php"><?= translate('create_account_link', $i18n) ?></a>
                     </div>
                     <?php
                 }

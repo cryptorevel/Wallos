@@ -31,19 +31,14 @@ if (isset($_COOKIE['colorTheme'])) {
 }
 
 $settings = $db->querySingle("SELECT * FROM admin", true);
-if ($settings['smtp_address'] == "" || $settings['server_url'] == "") {
-    header("Location: .");
-    exit();
-} else {
-    $resetPasswordEnabled = true;
-}
+$passwordRecoveryConfigured = $settings['smtp_address'] != "" && $settings['server_url'] != "";
 
 $hasSuccessMessage = false;
 $hasErrorMessage = false;
 $passwordsMismatch = false;
 $hideForm = false;
 
-if (isset($_POST['email']) && $_POST['email'] != "" && isset($_GET['submit']) && $_GET['submit'] && !(isset($_GET['token'])) && !(isset($_POST['token']))) {
+if ($passwordRecoveryConfigured && isset($_POST['email']) && $_POST['email'] != "" && isset($_GET['submit']) && $_GET['submit'] && !(isset($_GET['token'])) && !(isset($_POST['token']))) {
     $requestMode = true;
     $resetMode = false;
     $email = $_POST['email'];
@@ -252,7 +247,13 @@ if (isset($_POST['password']) && $_POST['password'] != "" && isset($_POST['confi
             <form action="passwordreset.php?submit=true" method="post">
                 <?php
                 if ($requestMode) {
-                    if (!$hideForm) {
+                    if (!$passwordRecoveryConfigured) {
+                        ?>
+                        <ul class="error-box">
+                            <li><i class="fa-solid fa-triangle-exclamation"></i><?= translate('password_recovery_unavailable', $i18n) ?></li>
+                        </ul>
+                        <?php
+                    } elseif (!$hideForm) {
                         ?>
                         <div class="form-group">
                             <label for="email"><?= translate('email', $i18n) ?>:</label>
@@ -334,4 +335,4 @@ if (isset($_POST['password']) && $_POST['password'] != "" && isset($_POST['confi
     </script>
 </body>
 
-</html>
+</html>

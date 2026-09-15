@@ -149,6 +149,11 @@ bellamy/wallos:latest
 
 ### Docker Compose
 
+Copy `.env.example` to `.env` before starting Compose. To protect password
+login and registration, set `TURNSTILE_ENABLED=true` and provide the matching
+`TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY`. Keep production keys out of
+version control; Cloudflare's test keys should be used for localhost testing.
+
 ```
 services:
   wallos:
@@ -157,7 +162,10 @@ services:
     ports:
       - "8282:80/tcp"
     environment:
-      TZ: 'America/Toronto'
+      TZ: '${TZ:-America/Vancouver}'
+      TURNSTILE_ENABLED: '${TURNSTILE_ENABLED:-false}'
+      TURNSTILE_SITE_KEY: '${TURNSTILE_SITE_KEY:-}'
+      TURNSTILE_SECRET_KEY: '${TURNSTILE_SECRET_KEY:-}'
     # Volumes store your data between container upgrades
     volumes:
       - './db:/var/www/html/db'

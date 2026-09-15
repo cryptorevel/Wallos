@@ -5,11 +5,11 @@ services:
     ports:
       - "8282:80/tcp"
     environment:
-      TZ: 'America/Toronto'
+      TZ: '${TZ:-America/Vancouver}'
       # Optional Cloudflare Turnstile protection for login and registration
-      # TURNSTILE_ENABLED: "false"
-      # TURNSTILE_SITE_KEY: ""
-      # TURNSTILE_SECRET_KEY: ""
+      TURNSTILE_ENABLED: '${TURNSTILE_ENABLED:-false}'
+      TURNSTILE_SITE_KEY: '${TURNSTILE_SITE_KEY:-}'
+      TURNSTILE_SECRET_KEY: '${TURNSTILE_SECRET_KEY:-}'
       # Optional OIDC environment variables
       # OIDC_ENABLED: "true"
       # OIDC_PROVIDER_NAME: "Authelia"

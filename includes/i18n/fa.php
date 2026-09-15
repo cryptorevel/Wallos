@@ -43,6 +43,7 @@ $i18n = [
     "registration_rate_limited" => "تعداد تلاش‌های ثبت‌نام بیش از حد مجاز است. لطفاً کمی بعد دوباره تلاش کنید.",
     // بازیابی رمز عبور
     "forgot_password" => "رمز عبور را فراموش کرده‌اید؟",
+    "password_recovery_unavailable" => "بازیابی رمز عبور در حال حاضر در دسترس نیست. لطفاً با مدیر تماس بگیرید.",
     "reset_password" => "بازنشانی رمز عبور",
     "reset_sent_check_email" => "ایمیل بازنشانی ارسال شد. لطفاً ایمیل خود را بررسی کنید.",
     "password_reset_successful" => "رمز عبور با موفقیت بازنشانی شد",
@@ -505,8 +506,9 @@ $i18n = [
     "over_budget_warning" => "از بودجه عبور کرده‌اید",
     // TOTP
     "insert_totp_code" => "کد TOTP را وارد کنید",
-    "no_account_yet" => "هنوز حساب ندارید؟",
-    "already_have_account" => "از قبل حساب دارید؟",
+    "no_account_yet" => "حساب کاربری ندارید؟",
+    "already_have_account" => "قبلاً حساب ساخته‌اید؟",
+    "create_account_link" => "ثبت‌نام کنید",
     "google_search_info" => "نتایج تصاویر Google را از طریق SerpAPI به جست‌وجوی نشان اشتراک اضافه می‌کند. یک حساب رایگان SerpAPI بسازید و کلید API را اینجا وارد کنید.",
     "monthly_searches_used" => "جست‌وجوهای مصرف‌شده این ماه",
     "monthly_requests_used" => "درخواست‌های API مصرف‌شده این ماه",

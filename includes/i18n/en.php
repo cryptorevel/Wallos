@@ -42,7 +42,8 @@ $i18n = [
     "auth_rate_limited" => "Too many attempts. Please try again later.",
     "registration_rate_limited" => "Too many registration attempts. Please try again later.",
     // Password Reset Page
-    "forgot_password" => "Forgot Password",
+    "forgot_password" => "Forgot password?",
+    "password_recovery_unavailable" => "Password recovery is currently unavailable. Please contact the administrator.",
     "reset_password" => "Reset Password",
     "reset_sent_check_email" => "Reset email sent. Please check your email.",
     "password_reset_successful" => "Password reset successful",
@@ -508,8 +509,9 @@ $i18n = [
     "insert_totp_code" => "Insert TOTP code",
 
 
-    "no_account_yet" => "Don't have an account yet?",
+    "no_account_yet" => "Don't have an account?",
     "already_have_account" => "Already have an account?",
+    "create_account_link" => "Create account",
     "google_search_info" => "Adds Google image results (via SerpAPI) as an additional source in the subscription logo search. Create a free SerpAPI account and paste your API key here.",
     "monthly_searches_used" => "Searches used this month",
     "monthly_requests_used" => "API requests used this month",

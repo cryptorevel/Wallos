@@ -5,5 +5,8 @@
 .DS_Store
 .idea/
 .vscode/
+.env
+.env.local
+.env.*.local
 AGENTS.md
 .antigravitycli
