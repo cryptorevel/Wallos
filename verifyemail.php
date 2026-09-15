@@ -111,6 +111,7 @@ if (isset($_GET['email']) && isset($_GET['token'])) {
     <link rel="stylesheet" href="styles/themes/purple.css?<?= $version ?>" id="purple-theme" <?= $colorTheme != "purple" ? "disabled" : "" ?>>
     <link rel="stylesheet" href="styles/font-awesome.min.css">
     <link rel="stylesheet" href="styles/barlow.css">
+    <?php require __DIR__ . '/includes/persian_font.php'; ?>
     <link rel="stylesheet" href="styles/login-dark-theme.css?<?= $version ?>" id="dark-theme" <?= $theme == "light" ? "disabled" : "" ?>>
     <script type="text/javascript" src="scripts/auth-theme.js?<?= $version ?>"></script>
 </head>

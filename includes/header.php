@@ -100,6 +100,7 @@ $mobileNavigation = $settings['mobile_nav'] ? "mobile-navigation" : "";
   <link rel="stylesheet" href="styles/themes/yellow.css?<?= $version ?>" id="yellow-theme" <?= $colorTheme != "yellow" ? "disabled" : "" ?>>
   <link rel="stylesheet" href="styles/themes/purple.css?<?= $version ?>" id="purple-theme" <?= $colorTheme != "purple" ? "disabled" : "" ?>>
   <link rel="stylesheet" href="styles/barlow.css">
+  <?php require __DIR__ . '/persian_font.php'; ?>
   <link rel="stylesheet" href="styles/font-awesome.min.css">
   <link rel="stylesheet" href="styles/brands.css">
   <script type="text/javascript" src="scripts/all.js?<?= $version ?>"></script>

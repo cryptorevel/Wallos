@@ -8,12 +8,13 @@ body, html {
     min-height: 100%;
 }
 
+html[lang="fa"],
 html[lang="fa"] body,
 html[lang="fa"] input,
 html[lang="fa"] button,
 html[lang="fa"] select,
 html[lang="fa"] textarea {
-    font-family: Tahoma, Arial, sans-serif;
+    font-family: "Vazirmatn", Tahoma, Arial, sans-serif;
 }
 
 .rtl {

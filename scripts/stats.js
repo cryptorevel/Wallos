@@ -6,7 +6,7 @@ function _chartTheme() {
     const text   = cs.getPropertyValue('--text-color').trim()   || '#202020';
     const border = cs.getPropertyValue('--box-border-color').trim() || '#E8E8E8';
     const dark   = document.body.classList.contains('dark');
-    const font   = "Barlow, 'Helvetica Neue', Helvetica, sans-serif";
+    const font   = getComputedStyle(document.body).fontFamily;
     return { main, text, border, dark, font };
 }
 
